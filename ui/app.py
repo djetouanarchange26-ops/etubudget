@@ -170,7 +170,8 @@ class App(ctk.CTk):
                 from ui.stats_frame import StatsFrame
                 self.frames["stats"] = StatsFrame(self.container, self)
             elif name == "exporter":
-                pass  # semaine 9
+                from ui.export_frame import ExportFrame
+                self.frames["exporter"] = ExportFrame(self.container, self)
 
         # Cacher toutes les frames
         for frame in self.frames.values():
