@@ -122,3 +122,77 @@ def seed_default_categories(user_id):
                 VALUES (?, ?, ?)
             """, (user_id, name, color))
     conn.commit()
+
+def get_transactions(user_id, month=None, category_id=None, tx_type=None):
+    conn = get_connection()
+    query = """
+        SELECT transactions.*, categories.name as category_name, categories.color as category_color
+        FROM transactions
+        LEFT JOIN categories ON transactions.category_id = categories.id
+        WHERE transactions.user_id = ?
+    """
+    params = [user_id]
+
+    if month:
+        query += " AND strftime('%Y-%m', transactions.date) = ?"
+        params.append(month)
+    if category_id:
+        query += " AND transactions.category_id = ?"
+        params.append(category_id)
+    if tx_type:
+        query += " AND transactions.type = ?"
+        params.append(tx_type)
+
+    query += " ORDER BY transactions.date DESC"
+
+    results = conn.execute(query, params).fetchall()
+    return [dict(r) for r in results]
+
+def update_transaction(tx_id, user_id, amount, description, date, tx_type, category_id):
+    conn = get_connection()
+    try:
+        conn.execute("""
+            UPDATE transactions
+            SET amount = ?, description = ?, date = ?, type = ?, category_id = ?
+            WHERE id = ? AND user_id = ?
+        """, (amount, description, date, tx_type, category_id, tx_id, user_id)) #met à jour une transaction existante dans la base de données en fonction de son ID et de l'ID de l'utilisateur
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur update_transaction : {e}")
+        return False
+    
+def delete_transaction(tx_id, user_id):
+    conn = get_connection()
+    try:
+        conn.execute("""
+            DELETE FROM transactions WHERE id = ? AND user_id = ?
+        """, (tx_id, user_id)) #supprime une transaction de la base de données en fonction de son ID et de l'ID de l'utilisateur
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur delete_transaction : {e}")
+        return False
+    
+def get_available_months(user_id):
+    conn = get_connection()
+    months = conn.execute("""
+        SELECT DISTINCT strftime('%Y-%m', date) AS month
+        FROM transactions
+        WHERE user_id = ?
+        ORDER BY month DESC
+    """, (user_id,)).fetchall() #récupère les mois pour lesquels l'utilisateur a des transactions dans la base de données
+    return [r["month"] for r in months]
+
+def get_total_balance(user_id):
+    """Solde cumulé depuis le début — toutes dates confondues."""
+    conn = get_connection()
+    revenus = conn.execute("""
+        SELECT COALESCE(SUM(amount), 0) FROM transactions
+        WHERE user_id = ? AND type = 'revenu'
+    """, (user_id,)).fetchone()[0]
+    depenses = conn.execute("""
+        SELECT COALESCE(SUM(amount), 0) FROM transactions
+        WHERE user_id = ? AND type = 'depense'
+    """, (user_id,)).fetchone()[0]
+    return revenus - depenses

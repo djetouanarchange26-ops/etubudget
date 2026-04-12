@@ -163,7 +163,9 @@ class App(ctk.CTk):
                 from ui.categories_frame import CategoriesFrame
                 self.frames["categories"] = CategoriesFrame(self.container, self)
             elif name == "historique":
-                pass  # semaine 7
+                from ui.history_frame import HistoryFrame
+                self.frames["historique"] = HistoryFrame(self.container, self)
+        
             elif name == "stats":
                 pass  # semaine 8
             elif name == "exporter":
