@@ -196,3 +196,44 @@ def get_total_balance(user_id):
         WHERE user_id = ? AND type = 'depense'
     """, (user_id,)).fetchone()[0]
     return revenus - depenses
+
+def get_daily_spending(user_id, month):
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT transactions.date, COALESCE(SUM(amount), 0) as total
+        FROM transactions
+        WHERE transactions.user_id = ?
+          AND transactions.type = 'depense'
+          AND strftime('%Y-%m', transactions.date) = ?
+        GROUP BY transactions.date
+        ORDER BY transactions.date ASC
+    """, (user_id, month)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_spending_by_category(user_id, month):
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT
+            COALESCE(c.name, 'Divers')  AS category_name,
+            COALESCE(c.color, '#888780') AS color,
+            SUM(t.amount)                AS total
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ?
+          AND t.type = 'depense'
+          AND strftime('%Y-%m', t.date) = ?
+        GROUP BY c.id
+        ORDER BY total DESC
+    """, (user_id, month)).fetchall()
+
+    total_all = sum(r["total"] for r in rows) or 1
+    return [
+        {
+            "category_name": r["category_name"],
+            "color":         r["color"],
+            "total":         r["total"],
+            "percentage":    round(r["total"] / total_all * 100, 1),
+        }
+        for r in rows
+    ]

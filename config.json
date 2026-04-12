@@ -1,5 +1,5 @@
 {
-    "devise": "XOF",
-    "symbole": "FCFA",
+    "devise": "EUR",
+    "symbole": "\u20ac",
     "devise_base": "EUR"
 }
