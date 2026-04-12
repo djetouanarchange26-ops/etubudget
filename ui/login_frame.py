@@ -109,7 +109,7 @@ class LoginFrame(ctk.CTkFrame):
         # 4. Connexion réussie
         self.label_error.configure(text="")
         state.set_user(user["id"], user["username"])
-        self.app.show_frame("dashboard")
+        self.app.show_frame("accueil")
 
     # ── Logique inscription ────────────────────────────────────
     def _signup(self):
@@ -137,4 +137,4 @@ class LoginFrame(ctk.CTkFrame):
         # 5. Connexion automatique après inscription
         state.set_user(user["id"], user["username"])
         self.label_error.configure(text="")
-        self.app.show_frame("dashboard")
+        self.app.show_frame("accueil")

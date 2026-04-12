@@ -39,10 +39,11 @@ def get_monthly_summary(user_id, month):
     "solde":           (total_revenu or 0) - (total_depense or 0)}
 
 def get_last_transactions(user_id, limit=5):
-    conn = get_connection() #obtenir la connexion à la base de données
+    conn = get_connection()
     transactions = conn.execute("""
-        SELECT * FROM transactions
+        SELECT transactions.*, categories.name, categories.color
+        FROM transactions
         LEFT JOIN categories ON transactions.category_id = categories.id
-        WHERE user_id = ? ORDER BY date DESC LIMIT ?
-    """, (user_id, limit)).fetchall() #exécuter une requête pour récupérer les dernières transactions de l'utilisateur, triées par date décroissante et limitées au nombre spécifié
-    return [dict(r) for r in transactions] #retourner une liste de dictionnaires contenant les informations des transactions récupérées
+        WHERE transactions.user_id = ? ORDER BY transactions.date DESC LIMIT ?
+    """, (user_id, limit)).fetchall()
+    return [dict(r) for r in transactions]

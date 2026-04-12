@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import state
+from utils.config import get_config, save_config, DEVISES
 
 class App(ctk.CTk):
     def __init__(self):
@@ -9,43 +10,170 @@ class App(ctk.CTk):
         self.minsize(800, 500)
         self.frames = {}
         self.current_frame = None
+        self.nav_buttons = {}
         self._build_layout()
         self._register_frames()
         self.show_frame("login")
 
     def _build_layout(self):
-        # Sidebar gauche (sera peuplée en S4)
-        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0,
+                                    fg_color="#16213e")
         self.sidebar.pack_propagate(False)
-        # Zone principale droite
+
         self.container = ctk.CTkFrame(self, fg_color="transparent")
         self.container.pack(side="right", fill="both", expand=True)
-        # La sidebar sera affichée seulement après le login
-        # (on la cache pour l'instant)
+
+    def _build_sidebar(self):
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+        self.nav_buttons = {}
+
+        # ── Logo + titre ──────────────────────────────────────
+        top = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        top.pack(fill="x", padx=14, pady=(20, 16))
+
+        ctk.CTkLabel(
+            top, text="E", width=36, height=36,
+            fg_color="#1D9E75", corner_radius=10,
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white",
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            top, text="EtuBudget",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color="white",
+        ).pack(side="left", padx=8)
+
+        # ── Boutons navigation ────────────────────────────────
+        nav_items = [
+            ("accueil",    "Accueil"),
+            ("ajouter",    "Ajouter"),
+            ("historique", "Historique"),
+            ("stats",      "Statistiques"),
+            ("exporter",   "Exporter"),
+        ]
+        for name, label in nav_items:
+            btn = ctk.CTkButton(
+                self.sidebar, text=label,
+                anchor="w", height=38,
+                fg_color="transparent",
+                hover_color="#0F6E56",
+                text_color="white",
+                corner_radius=8,
+                command=lambda n=name: self.show_frame(n),
+            )
+            btn.pack(fill="x", padx=10, pady=2)
+            self.nav_buttons[name] = btn
+
+        # ── Bloc bas (devise + utilisateur) ───────────────────
+        bottom = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        bottom.pack(side="bottom", fill="x", padx=10, pady=16)
+
+        # Séparateur
+        ctk.CTkFrame(
+            bottom, height=1, fg_color="#2a2a4a"
+        ).pack(fill="x", pady=(0, 12))
+
+        # ── Sélecteur de devise ───────────────────────────────
+        config = get_config()
+
+        ctk.CTkLabel(
+            bottom,
+            text="Devise",
+            font=ctk.CTkFont(size=11),
+            text_color="#9090a8",
+        ).pack(anchor="w", pady=(0, 4))
+
+        devise_var = ctk.StringVar(value=config.get("devise", "EUR"))
+
+        def on_devise_change(choix):
+            save_config({"devise": choix, "symbole": DEVISES[choix]})
+            if self.current_frame == "accueil" and "accueil" in self.frames:
+                self.frames["accueil"].refresh()
+
+        ctk.CTkOptionMenu(
+            bottom,
+            values=list(DEVISES.keys()),
+            variable=devise_var,
+            command=on_devise_change,
+            width=176,
+            height=32,
+            fg_color="#1D9E75",
+            button_color="#0F6E56",
+            button_hover_color="#085041",
+            text_color="white",
+            font=ctk.CTkFont(size=12),
+        ).pack(fill="x", pady=(0, 10))
+
+        # ── Bloc utilisateur ──────────────────────────────────
+        user_row = ctk.CTkFrame(bottom, fg_color="transparent")
+        user_row.pack(fill="x")
+
+        username = state.current_username or "?"
+        initials = username[:2].upper()
+        ctk.CTkLabel(
+            user_row, text=initials,
+            width=32, height=32,
+            fg_color="#534AB7", corner_radius=16,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white",
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            user_row, text=username,
+            font=ctk.CTkFont(size=12),
+            text_color="#c8c8d8",
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            bottom, text="Déconnexion",
+            height=32, fg_color="transparent",
+            border_width=1, border_color="#3a3a5a",
+            text_color="#c8c8d8",
+            hover_color="#993C1D",
+            command=self.logout,
+        ).pack(fill="x", pady=(10, 0))
 
     def _register_frames(self):
-        # On importe ici pour éviter les imports circulaires
         from ui.login_frame import LoginFrame
         self.frames["login"] = LoginFrame(self.container, self)
-        # Les autres frames seront ajoutées au fur et à mesure des semaines
+
+    def _set_active_nav(self, name):
+        for btn_name, btn in self.nav_buttons.items():
+            if btn_name == name:
+                btn.configure(fg_color="#1D9E75")
+            else:
+                btn.configure(fg_color="transparent")
 
     def show_frame(self, name: str):
+        if name not in self.frames:
+            if name == "accueil":
+                from ui.dashboard_frame import DashboardFrame
+                self.frames["accueil"] = DashboardFrame(self.container, self)
+
         # Cache toutes les frames
         for frame in self.frames.values():
             frame.pack_forget()
-        # Gestion de la sidebar : visible uniquement si connecté
+
         if name == "login":
             self.sidebar.pack_forget()
         else:
             self.sidebar.pack(side="left", fill="y")
-        # Affiche la frame demandée
-        self.frames[name].pack(fill="both", expand=True)
-        self.current_frame = name
+            self._build_sidebar()
+            self._set_active_nav(name)
 
-    def register_frame(self, name: str, frame):
-        """Permet d'enregistrer une frame depuis l'extérieur (utile en S4+)."""
-        self.frames[name] = frame
+        if name in self.frames:
+            self.frames[name].pack(fill="both", expand=True)
+
+        self.current_frame = name    
 
     def logout(self):
         state.clear_user()
+        # Détruire tous les widgets du container
+        for widget in self.container.winfo_children():
+            widget.destroy()
+        # Réinitialiser les frames
+        self.frames = {}
+        self._register_frames()
         self.show_frame("login")
