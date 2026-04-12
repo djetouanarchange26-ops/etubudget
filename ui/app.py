@@ -50,6 +50,7 @@ class App(ctk.CTk):
         nav_items = [
             ("accueil",    "Accueil"),
             ("ajouter",    "Ajouter"),
+            ("categories", "Catégories"),
             ("historique", "Historique"),
             ("stats",      "Statistiques"),
             ("exporter",   "Exporter"),
@@ -158,6 +159,9 @@ class App(ctk.CTk):
             elif name == "ajouter":
                 from ui.add_transaction_frame import AddTransactionFrame
                 self.frames["ajouter"] = AddTransactionFrame(self.container, self)
+            elif name == "categories":
+                from ui.categories_frame import CategoriesFrame
+                self.frames["categories"] = CategoriesFrame(self.container, self)
             elif name == "historique":
                 pass  # semaine 7
             elif name == "stats":
