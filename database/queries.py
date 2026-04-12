@@ -47,3 +47,25 @@ def get_last_transactions(user_id, limit=5):
         WHERE transactions.user_id = ? ORDER BY transactions.date DESC LIMIT ?
     """, (user_id, limit)).fetchall()
     return [dict(r) for r in transactions]
+
+def insert_transaction(user_id, amount, description, date, tx_type, category_id):
+    conn = get_connection()
+    try:
+        conn.execute("""
+            INSERT INTO transactions (user_id, amount, description, date, type, category_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (user_id, amount, description, date, tx_type, category_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur insert_transaction : {e}")
+        return False
+    
+def get_categories_for_user(user_id):
+    conn = get_connection()
+    categories = conn.execute("""
+        SELECT * FROM categories
+        WHERE user_id = ?
+        ORDER BY name ASC
+    """, (user_id,)).fetchall()
+    return [dict(r) for r in categories]

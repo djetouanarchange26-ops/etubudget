@@ -2,6 +2,7 @@ import customtkinter as ctk
 import state
 from utils.config import get_config, save_config, DEVISES
 
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -14,12 +15,12 @@ class App(ctk.CTk):
         self._build_layout()
         self._register_frames()
         self.show_frame("login")
+        self.bind("<Control-n>", lambda e: self.show_frame("ajouter"))
 
     def _build_layout(self):
         self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0,
                                     fg_color="#16213e")
         self.sidebar.pack_propagate(False)
-
         self.container = ctk.CTkFrame(self, fg_color="transparent")
         self.container.pack(side="right", fill="both", expand=True)
 
@@ -75,12 +76,11 @@ class App(ctk.CTk):
             bottom, height=1, fg_color="#2a2a4a"
         ).pack(fill="x", pady=(0, 12))
 
-        # ── Sélecteur de devise ───────────────────────────────
+        # Sélecteur de devise
         config = get_config()
 
         ctk.CTkLabel(
-            bottom,
-            text="Devise",
+            bottom, text="Devise",
             font=ctk.CTkFont(size=11),
             text_color="#9090a8",
         ).pack(anchor="w", pady=(0, 4))
@@ -88,7 +88,10 @@ class App(ctk.CTk):
         devise_var = ctk.StringVar(value=config.get("devise", "EUR"))
 
         def on_devise_change(choix):
-            save_config({"devise": choix, "symbole": DEVISES[choix]})
+            c = get_config()
+            c["devise"] = choix
+            c["symbole"] = DEVISES[choix]
+            save_config(c)
             if self.current_frame == "accueil" and "accueil" in self.frames:
                 self.frames["accueil"].refresh()
 
@@ -97,8 +100,7 @@ class App(ctk.CTk):
             values=list(DEVISES.keys()),
             variable=devise_var,
             command=on_devise_change,
-            width=176,
-            height=32,
+            width=176, height=32,
             fg_color="#1D9E75",
             button_color="#0F6E56",
             button_hover_color="#085041",
@@ -106,12 +108,13 @@ class App(ctk.CTk):
             font=ctk.CTkFont(size=12),
         ).pack(fill="x", pady=(0, 10))
 
-        # ── Bloc utilisateur ──────────────────────────────────
+        # Bloc utilisateur
         user_row = ctk.CTkFrame(bottom, fg_color="transparent")
         user_row.pack(fill="x")
 
         username = state.current_username or "?"
         initials = username[:2].upper()
+
         ctk.CTkLabel(
             user_row, text=initials,
             width=32, height=32,
@@ -147,15 +150,26 @@ class App(ctk.CTk):
                 btn.configure(fg_color="transparent")
 
     def show_frame(self, name: str):
+        # Créer la frame si elle n'existe pas encore
         if name not in self.frames:
             if name == "accueil":
                 from ui.dashboard_frame import DashboardFrame
                 self.frames["accueil"] = DashboardFrame(self.container, self)
+            elif name == "ajouter":
+                from ui.add_transaction_frame import AddTransactionFrame
+                self.frames["ajouter"] = AddTransactionFrame(self.container, self)
+            elif name == "historique":
+                pass  # semaine 7
+            elif name == "stats":
+                pass  # semaine 8
+            elif name == "exporter":
+                pass  # semaine 9
 
-        # Cache toutes les frames
+        # Cacher toutes les frames
         for frame in self.frames.values():
             frame.pack_forget()
 
+        # Sidebar
         if name == "login":
             self.sidebar.pack_forget()
         else:
@@ -163,17 +177,19 @@ class App(ctk.CTk):
             self._build_sidebar()
             self._set_active_nav(name)
 
+        # Afficher la frame demandée
         if name in self.frames:
             self.frames[name].pack(fill="both", expand=True)
 
-        self.current_frame = name    
+        self.current_frame = name
+
+    def register_frame(self, name: str, frame):
+        self.frames[name] = frame
 
     def logout(self):
         state.clear_user()
-        # Détruire tous les widgets du container
         for widget in self.container.winfo_children():
             widget.destroy()
-        # Réinitialiser les frames
         self.frames = {}
         self._register_frames()
         self.show_frame("login")

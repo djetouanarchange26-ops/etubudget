@@ -23,3 +23,32 @@ def validate_login_fields(username, password):
         return (False, "Le mot de passe doit contenir au moins 6 caractères.")
     
     return (True, "") #si les champs sont valides, retourne True et un message vide
+
+def validate_transaction_fields(amount_str, date_str):
+    """Valide et convertit les champs du formulaire de transaction."""
+    # Montant
+    if not amount_str or not amount_str.strip():
+        return (False, "Le montant est obligatoire.", 0, "")
+    try:
+        amount = float(amount_str.strip().replace(",", "."))
+        if amount <= 0:
+            return (False, "Le montant doit être positif.", 0, "")
+    except ValueError:
+        return (False, "Montant invalide — utilise un point ou une virgule.", 0, "")
+
+    # Date
+    if not date_str or not date_str.strip():
+        return (False, "La date est obligatoire.", 0, "")
+    try:
+        from datetime import datetime
+        # Accepte JJ/MM/AAAA et YYYY-MM-DD
+        date_str = date_str.strip()
+        if "/" in date_str:
+            date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+        else:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        date_iso = date_obj.strftime("%Y-%m-%d")
+    except ValueError:
+        return (False, "Format de date invalide — utilise JJ/MM/AAAA.", 0, "")
+
+    return (True, "", amount, date_iso)
