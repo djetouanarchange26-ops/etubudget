@@ -2,7 +2,7 @@ import customtkinter as ctk
 import state
 from utils.validators import hash_password, check_password, validate_login_fields
 from database.queries import create_user, get_user_by_username
-
+from database.queries import create_user, get_user_by_username, seed_default_categories
 
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -132,7 +132,7 @@ class LoginFrame(ctk.CTkFrame):
         user = get_user_by_username(username)
 
         # 4. Catégories par défaut (sera codé en S6)
-        # seed_default_categories(user["id"])
+        seed_default_categories(user["id"])
 
         # 5. Connexion automatique après inscription
         state.set_user(user["id"], user["username"])

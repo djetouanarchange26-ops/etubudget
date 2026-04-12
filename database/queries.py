@@ -69,3 +69,56 @@ def get_categories_for_user(user_id):
         ORDER BY name ASC
     """, (user_id,)).fetchall()
     return [dict(r) for r in categories]
+
+def insert_category(user_id, name, color):
+    conn = get_connection()
+    categorie = conn.execute("""
+        SELECT * FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?)
+    """, (user_id, name)).fetchone() #vérifie si une catégorie avec le même nom existe déjà pour l'utilisateur
+
+    if categorie:
+        return (False, "Une catégorie avec ce nom existe déjà.") #si une catégorie avec le même nom existe déjà, retourne False et un message d'erreur  
+    
+    conn.execute("""
+        INSERT INTO categories (user_id, name, color)
+        VALUES (?, ?, ?)
+    """, (user_id, name, color)) #insère la nouvelle catégorie dans la base de données
+    conn.commit() #valide les changements dans la base de données
+    return (True, "Catégorie ajoutée avec succès.")
+
+def delete_category(category_id, user_id):
+    conn = get_connection()
+    categorie = conn.execute("""
+        SELECT * FROM categories WHERE id = ? AND user_id = ?
+    """, (category_id, user_id)).fetchone() #récupère la catégorie à supprimer
+
+    if not categorie:
+        return (False, "Catégorie non trouvée.") #si la catégorie n'existe pas, retourne False et un message d'erreur
+
+    conn.execute("""
+        DELETE FROM categories WHERE id = ? AND user_id = ?
+    """, (category_id, user_id)) #supprime la catégorie de la base de données
+    conn.commit() #valide les changements dans la base de données
+    return (True, "Catégorie supprimée.")
+
+def seed_default_categories(user_id):
+    conn = get_connection()
+    default_categories = [
+        ("Alimentation", "#1D9E75"),
+        ("Abonnements", "#5DCAA5"),
+        ("Courses", "#F09595"),
+        ("Divers", "#F2B880"),
+        ("Sorties", "#A66BFF"),
+        ("Santé", "#FF6B6B"),
+        ("Transport", "#4ECDC4"),
+    ]
+    for name, color in default_categories:
+        existing = conn.execute("""
+            SELECT * FROM categories WHERE user_id = ? AND name = ?
+        """, (user_id, name)).fetchone()
+        if not existing:
+            conn.execute("""
+                INSERT INTO categories (user_id, name, color)
+                VALUES (?, ?, ?)
+            """, (user_id, name, color))
+    conn.commit()
