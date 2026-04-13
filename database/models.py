@@ -17,7 +17,7 @@ def create_tables():
                 categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
-                    name TEXT UNIQUE NOT NULL,
+                    name TEXT NOT NULL,
                     color TEXT NOT NULL,
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 )
