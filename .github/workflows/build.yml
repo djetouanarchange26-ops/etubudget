@@ -1,0 +1,108 @@
+name: Build EtuBudget
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Create secrets.env
+        run: echo "EXCHANGE_API_KEY=${{ secrets.EXCHANGE_API_KEY }}" > secrets.env
+
+      - name: Build .exe
+        run: |
+          pyinstaller --onefile --windowed --name "EtuBudget" --add-data "secrets.env;." main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EtuBudget-Windows
+          path: dist/EtuBudget.exe
+
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Create secrets.env
+        run: echo "EXCHANGE_API_KEY=${{ secrets.EXCHANGE_API_KEY }}" > secrets.env
+
+      - name: Build .app
+        run: |
+          pyinstaller --onefile --windowed --name "EtuBudget" --add-data "secrets.env:." main.py
+          cd dist && zip -r EtuBudget-Mac.app.zip EtuBudget.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EtuBudget-Mac
+          path: dist/EtuBudget-Mac.app.zip
+
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: EtuBudget-Windows
+
+      - name: Download Mac build
+        uses: actions/download-artifact@v4
+        with:
+          name: EtuBudget-Mac
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "EtuBudget ${{ github.ref_name }}"
+          body: |
+            ## EtuBudget ${{ github.ref_name }}
+            
+            Tracker de dépenses pour étudiants.
+            
+            ### Téléchargement
+            - **Windows** : télécharge `EtuBudget.exe` et lance directement
+            - **macOS** : télécharge `EtuBudget-Mac.app.zip`, dezipe et glisse dans Applications
+            
+            ### Note
+            Windows et macOS peuvent afficher un avertissement de sécurité 
+            la première fois — c'est normal pour une app non signée.
+            Clique sur "Exécuter quand même" (Windows) ou clic droit → Ouvrir (Mac).
+          files: |
+            EtuBudget.exe
+            EtuBudget-Mac.app.zip
+          draft: false
+          prerelease: false
