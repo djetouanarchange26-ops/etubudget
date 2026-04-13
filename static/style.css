@@ -405,3 +405,32 @@ html, body {
 @media (min-width: 480px) {
     .app-layout { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 }
+
+/* ── Onboarding overlay ───────────────────────────────── */
+.ob-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+}
+.ob-card {
+    background: #16213e;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.ob-emoji { font-size: 32px; margin-bottom: 10px; }
+.ob-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.ob-text  { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+.ob-btn   {
+    background: var(--green);
+    color: white; border: none;
+    border-radius: 8px; padding: 12px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; width: 100%;
+    font-family: inherit;
+}

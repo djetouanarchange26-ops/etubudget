@@ -42,13 +42,4 @@ def get_rates(base_currency):
         return {}
 
 def convert(amount, from_currency, to_currency):
-    if from_currency == to_currency:
-        return amount
-    rates = get_rates(from_currency)
-    if not rates:
-        return amount
-    rate = rates.get(to_currency)
-    if rate is None:
-        print(f"Taux introuvable pour {to_currency}")
-        return amount
-    return amount * rate
+    return amount 

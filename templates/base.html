@@ -11,6 +11,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="EtuBudget">
 </head>
+<script>
+window.__EXCHANGE_KEY__ = "{{ exchange_key | default('') }}"
+</script>
 <body>
 
 {% block content %}{% endblock %}

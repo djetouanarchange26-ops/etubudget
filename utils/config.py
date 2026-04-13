@@ -39,7 +39,6 @@ def _default() -> dict:
     return {
         "devise":      "EUR",
         "symbole":     "€",
-        "devise_base": "EUR",
         "api_key":     os.getenv("EXCHANGE_API_KEY", ""),
         "theme":       "dark",
         "onboarding_seen": {

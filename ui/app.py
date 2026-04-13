@@ -95,7 +95,7 @@ class App(ctk.CTk):
 
         def on_devise_change(choix):
             c = get_config()
-            c["devise"] = choix
+            c["devise"]  = choix
             c["symbole"] = DEVISES[choix]
             save_config(c)
             if self.current_frame == "accueil" and "accueil" in self.frames:

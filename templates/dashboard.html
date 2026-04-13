@@ -95,12 +95,12 @@
       </svg>
       <span>Stats</span>
     </a>
-    <a class="nav-item" data-page="categories" href="/categories">
+    <a class="nav-item" data-page="settings" href="/settings">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
-        <circle cx="10" cy="10" r="3"/>
-        <path d="M10 2v2M10 16v2M2 10h2M16 10h2"/>
+        <circle cx="10" cy="10" r="2.5"/>
+        <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/>
       </svg>
-      <span>Plus</span>
+      <span>Réglages</span>
     </a>
   </nav>
 
@@ -111,18 +111,18 @@
 <script>
 if (!requireAuth()) {}
 
-const SYM = '€'
-
 async function init() {
+    const SYM = getSym()
+
     // Nom utilisateur
     const username = getUsername() || '?'
     document.getElementById('hero-name').textContent = `Bonjour ${username} 👋`
     document.getElementById('hero-av').textContent   = username.slice(0,2).toUpperCase()
 
-    // Solde cumulé
+    // Solde cumulé — converti
     const balRes  = await api('/stats/balance')
     const balData = await balRes.json()
-    const bal     = balData.balance || 0
+    const bal     = await convertAmount(balData.balance || 0)
     const balEl   = document.getElementById('hero-balance')
     balEl.textContent = `${bal >= 0 ? '+' : ''}${bal.toFixed(2)} ${SYM}`
     balEl.style.color = bal >= 0 ? '#5DCAA5' : '#F09595'
@@ -136,66 +136,71 @@ async function init() {
     const allMonths = months.includes(current) ? months : [current, ...months]
     allMonths.forEach(m => {
         const opt = document.createElement('option')
-        opt.value = m
-        opt.textContent = m
+        opt.value = m; opt.textContent = m
         sel.appendChild(opt)
     })
 
-    loadMonth()
+    await loadMonth()
+    showOnboarding('dashboard')
 }
 
 async function loadMonth() {
+    const SYM   = getSym()
     const month = document.getElementById('month-select').value
 
     // Résumé mensuel
     const sumRes  = await api(`/stats/summary?month=${month}`)
     const summary = await sumRes.json()
 
-    document.getElementById('chip-dep').textContent =
-        `-${summary.total_depenses.toFixed(2)} ${SYM}`
-    document.getElementById('chip-rev').textContent =
-        `+${summary.total_revenus.toFixed(2)} ${SYM}`
-    document.getElementById('chip-nb').textContent  =
-        `${summary.nb_transactions} tx`
+    const dep = await convertAmount(summary.total_depenses)
+    const rev = await convertAmount(summary.total_revenus)
+
+    document.getElementById('chip-dep').textContent = `-${dep.toFixed(2)} ${SYM}`
+    document.getElementById('chip-rev').textContent = `+${rev.toFixed(2)} ${SYM}`
+    document.getElementById('chip-nb').textContent  = `${summary.nb_transactions} tx`
 
     // Graphique barres
     const dailyRes = await api(`/stats/daily?month=${month}`)
     const daily    = await dailyRes.json()
-    buildBarChart(daily)
+    await buildBarChart(daily)
 
     // Dernières transactions
     const txRes = await api('/transactions/last?limit=5')
     const txs   = await txRes.json()
-    buildTxList(txs)
+    await buildTxList(txs)
 }
 
-function buildBarChart(data) {
+async function buildBarChart(data) {
     const wrap   = document.getElementById('bar-chart')
     const labels = document.getElementById('bar-labels')
     wrap.innerHTML = ''; labels.innerHTML = ''
 
     if (!data.length) {
-        wrap.innerHTML = '<div class="empty-state" style="padding:10px">Aucune dépense</div>'
+        wrap.innerHTML = '<div class="empty-state" style="padding:10px">Aucune dépense ce mois</div>'
         return
     }
 
-    const max = Math.max(...data.map(d => d.total))
-    data.forEach(d => {
-        const pct = Math.round((d.total / max) * 100)
+    // Convertir tous les totaux
+    const totaux = await Promise.all(data.map(d => convertAmount(d.total)))
+    const max    = Math.max(...totaux)
+
+    totaux.forEach((total, i) => {
+        const pct = Math.round((total / max) * 100)
         const bar = document.createElement('div')
-        bar.className = 'bar'
+        bar.className        = 'bar'
         bar.style.height     = `${pct}%`
         bar.style.background = pct > 80 ? '#F09595' : '#1D9E75'
         bar.style.opacity    = '0.8'
         wrap.appendChild(bar)
 
         const lbl = document.createElement('span')
-        lbl.textContent = d.date.split('-')[2]
+        lbl.textContent = data[i].date.split('-')[2]
         labels.appendChild(lbl)
     })
 }
 
-function buildTxList(txs) {
+async function buildTxList(txs) {
+    const SYM  = getSym()
     const list = document.getElementById('tx-list')
     list.innerHTML = ''
 
@@ -204,14 +209,16 @@ function buildTxList(txs) {
         return
     }
 
-    txs.forEach(tx => {
-        const isDep  = tx.type === 'depense'
-        const color  = tx.category_color || '#5F5E5A'
-        const row    = document.createElement('div')
+    for (const tx of txs) {
+        const isDep   = tx.type === 'depense'
+        const color   = tx.category_color || '#5F5E5A'
+        const montant = await convertAmount(tx.amount)
+        const row     = document.createElement('div')
         row.className = 'tx-row'
         row.innerHTML = `
             <div class="tx-icon" style="background:${hexToRgba(color,.2)}">
-                <div style="width:10px;height:10px;border-radius:3px;background:${color}"></div>
+                <div style="width:10px;height:10px;border-radius:3px;
+                            background:${color}"></div>
             </div>
             <div class="tx-info">
                 <div class="tx-name">${tx.description || 'Sans description'}</div>
@@ -219,11 +226,11 @@ function buildTxList(txs) {
             </div>
             <div class="tx-date">${fmtDate(tx.date)}</div>
             <div class="tx-amount ${isDep ? 'dep' : 'rev'}">
-                ${isDep ? '-' : '+'}${parseFloat(tx.amount).toFixed(2)} ${SYM}
+                ${isDep ? '-' : '+'}${montant.toFixed(2)} ${SYM}
             </div>
         `
         list.appendChild(row)
-    })
+    }
 }
 
 init()
