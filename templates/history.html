@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="app-layout">
+
+  <div class="page-header" style="padding:16px 16px 0">
+    <h2>Historique</h2>
+    <p>Toutes tes transactions</p>
+  </div>
+
+  <div class="main-content" style="padding-top:14px">
+
+    <!-- Filtres -->
+    <div class="filters">
+      <select id="f-month"  onchange="load()">
+        <option value="">Tous les mois</option>
+      </select>
+      <select id="f-cat" onchange="load()">
+        <option value="">Toutes</option>
+      </select>
+      <select id="f-type" onchange="load()">
+        <option value="">Tous</option>
+        <option value="depense">Dépenses</option>
+        <option value="revenu">Revenus</option>
+      </select>
+    </div>
+
+    <!-- Liste -->
+    <div class="tx-list" id="tx-list">
+      <div class="empty-state">Chargement...</div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-bar" id="total-bar" style="display:none">
+      <span id="total-count"></span>
+      <strong id="total-val"></strong>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
+      <span>Accueil</span>
+    </a>
+    <a class="nav-item active" data-page="history" href="/history">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="5" y1="8" x2="15" y2="8"/><line x1="5" y1="12" x2="10" y2="12"/></svg>
+      <span>Historique</span>
+    </a>
+    <a class="fab" href="/add">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><line x1="11" y1="4" x2="11" y2="18"/><line x1="4" y1="11" x2="18" y2="11"/></svg>
+    </a>
+    <a class="nav-item" data-page="stats" href="/stats">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="2,15 6,9 10,11.5 13,6 18,4.5"/></svg>
+      <span>Stats</span>
+    </a>
+    <a class="nav-item" data-page="categories" href="/categories">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2"/></svg>
+      <span>Plus</span>
+    </a>
+  </nav>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!requireAuth()) {}
+
+const SYM = '€'
+
+async function init() {
+    // Mois
+    const mRes   = await api('/transactions/months')
+    const months = await mRes.json()
+    const mSel   = document.getElementById('f-month')
+    months.forEach(m => {
+        const o = document.createElement('option')
+        o.value = m; o.textContent = m
+        mSel.appendChild(o)
+    })
+
+    // Catégories
+    const cRes  = await api('/categories/')
+    const cats  = await cRes.json()
+    const cSel  = document.getElementById('f-cat')
+    cats.forEach(c => {
+        const o = document.createElement('option')
+        o.value = c.id; o.textContent = c.name
+        cSel.appendChild(o)
+    })
+
+    load()
+}
+
+async function load() {
+    const month  = document.getElementById('f-month').value
+    const cat    = document.getElementById('f-cat').value
+    const type   = document.getElementById('f-type').value
+
+    let url = '/transactions/?'
+    if (month) url += `month=${month}&`
+    if (cat)   url += `category_id=${cat}&`
+    if (type)  url += `tx_type=${type}&`
+
+    const res = await api(url)
+    const txs = await res.json()
+    buildList(txs)
+}
+
+function buildList(txs) {
+    const list = document.getElementById('tx-list')
+    const bar  = document.getElementById('total-bar')
+    list.innerHTML = ''
+
+    if (!txs.length) {
+        list.innerHTML = '<div class="empty-state">Aucune transaction pour ces filtres.<br>Essaie de changer les filtres.</div>'
+        bar.style.display = 'none'
+        return
+    }
+
+    txs.forEach(tx => {
+        const isDep = tx.type === 'depense'
+        const color = tx.category_color || '#5F5E5A'
+        const row   = document.createElement('div')
+        row.className = 'tx-row'
+        row.innerHTML = `
+            <div class="tx-icon" style="background:${hexToRgba(color,.2)}">
+                <div style="width:10px;height:10px;border-radius:3px;
+                            background:${color}"></div>
+            </div>
+            <div class="tx-info">
+                <div class="tx-name">${tx.description || 'Sans description'}</div>
+                <div class="tx-cat">${tx.category_name || 'Sans catégorie'}</div>
+            </div>
+            <div class="tx-date">${fmtDate(tx.date)}</div>
+            <div class="tx-amount ${isDep ? 'dep' : 'rev'}">
+                ${isDep ? '-' : '+'}${parseFloat(tx.amount).toFixed(2)} ${SYM}
+            </div>
+        `
+        list.appendChild(row)
+    })
+
+    // Total
+    const dep = txs.filter(t => t.type === 'depense').reduce((s,t) => s + t.amount, 0)
+    const rev = txs.filter(t => t.type === 'revenu').reduce((s,t) => s + t.amount, 0)
+    document.getElementById('total-count').textContent =
+        `${txs.length} transaction(s)`
+    document.getElementById('total-val').textContent =
+        `Dep: -${dep.toFixed(2)} ${SYM}  |  Rev: +${rev.toFixed(2)} ${SYM}`
+    bar.style.display = 'flex'
+}
+
+init()
+</script>
+{% endblock %}

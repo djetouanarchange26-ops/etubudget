@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="app-layout">
+
+  <div class="page-header" style="padding:16px 16px 0">
+    <h2>Statistiques</h2>
+    <p>Visualise tes habitudes financières</p>
+  </div>
+
+  <div class="main-content" style="padding-top:14px">
+
+    <!-- Sélecteur mois -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:12px;color:var(--text2)">Mois :</span>
+      <select id="month-select" onchange="load()"
+        style="background:var(--bg2);border:1px solid var(--border);
+               border-radius:8px;padding:6px 12px;font-size:12px;
+               color:var(--text);outline:none;font-family:inherit">
+      </select>
+    </div>
+
+    <!-- 3 chiffres clés -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+                gap:8px;margin-bottom:14px" id="summary-cards">
+    </div>
+
+    <!-- Courbe dépenses par jour -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:12px">
+        Dépenses par jour
+      </div>
+      <canvas id="line-chart" height="160"></canvas>
+    </div>
+
+    <!-- Camembert répartition -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:12px">
+        Répartition par catégorie
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:160px;height:160px;flex-shrink:0">
+          <canvas id="pie-chart"></canvas>
+        </div>
+        <div class="legend" id="legend" style="flex:1"></div>
+      </div>
+    </div>
+
+    <!-- Barres par catégorie -->
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px">
+        Détail par catégorie
+      </div>
+      <canvas id="bar-chart" height="180"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
+      <span>Accueil</span>
+    </a>
+    <a class="nav-item" data-page="history" href="/history">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="5" y1="8" x2="15" y2="8"/><line x1="5" y1="12" x2="10" y2="12"/></svg>
+      <span>Historique</span>
+    </a>
+    <a class="fab" href="/add">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><line x1="11" y1="4" x2="11" y2="18"/><line x1="4" y1="11" x2="18" y2="11"/></svg>
+    </a>
+    <a class="nav-item active" data-page="stats" href="/stats">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="2,15 6,9 10,11.5 13,6 18,4.5"/></svg>
+      <span>Stats</span>
+    </a>
+    <a class="nav-item" data-page="categories" href="/categories">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2"/></svg>
+      <span>Plus</span>
+    </a>
+  </nav>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+if (!requireAuth()) {}
+
+const SYM = '€'
+let lineChart = null
+let pieChart  = null
+let barChart  = null
+
+async function init() {
+    const mRes   = await api('/transactions/months')
+    const months = await mRes.json()
+    const sel    = document.getElementById('month-select')
+    const cur    = currentMonth()
+    const all    = months.includes(cur) ? months : [cur, ...months]
+    all.forEach(m => {
+        const o = document.createElement('option')
+        o.value = m; o.textContent = m
+        sel.appendChild(o)
+    })
+    load()
+}
+
+async function load() {
+    const month = document.getElementById('month-select').value
+
+    const [sumRes, dailyRes, catRes] = await Promise.all([
+        api(`/stats/summary?month=${month}`),
+        api(`/stats/daily?month=${month}`),
+        api(`/stats/by-category?month=${month}`),
+    ])
+
+    const summary = await sumRes.json()
+    const daily   = await dailyRes.json()
+    const cats    = await catRes.json()
+
+    buildSummary(summary)
+    buildLineChart(daily)
+    buildPieChart(cats)
+    buildBarChart(cats)
+}
+
+function buildSummary(s) {
+    document.getElementById('summary-cards').innerHTML = `
+        <div class="card" style="margin:0;text-align:center">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px">Dépensé</div>
+            <div style="font-size:15px;font-weight:700;color:#F09595">
+                ${s.total_depenses.toFixed(2)} ${SYM}
+            </div>
+        </div>
+        <div class="card" style="margin:0;text-align:center">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px">Reçu</div>
+            <div style="font-size:15px;font-weight:700;color:#5DCAA5">
+                ${s.total_revenus.toFixed(2)} ${SYM}
+            </div>
+        </div>
+        <div class="card" style="margin:0;text-align:center">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px">Solde</div>
+            <div style="font-size:15px;font-weight:700;
+                color:${s.solde >= 0 ? '#5DCAA5' : '#F09595'}">
+                ${s.solde >= 0 ? '+' : ''}${s.solde.toFixed(2)} ${SYM}
+            </div>
+        </div>
+    `
+}
+
+function buildLineChart(data) {
+    if (lineChart) { lineChart.destroy(); lineChart = null }
+
+    const ctx = document.getElementById('line-chart').getContext('2d')
+
+    if (!data.length) {
+        ctx.font = '13px sans-serif'
+        ctx.fillStyle = '#9090a8'
+        ctx.textAlign = 'center'
+        ctx.fillText('Aucune dépense ce mois', ctx.canvas.width / 2, 80)
+        return
+    }
+
+    const labels = data.map(d => d.date.split('-')[2])
+    const values = data.map(d => d.total)
+
+    lineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data:            values,
+                borderColor:     '#1D9E75',
+                backgroundColor: 'rgba(29,158,117,0.1)',
+                borderWidth:     2,
+                pointBackgroundColor: '#1D9E75',
+                pointRadius:     4,
+                tension:         0.3,
+                fill:            true,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.parsed.y.toFixed(2)} ${SYM}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#9090a8', font: { size: 10 } },
+                    grid:  { color: 'rgba(255,255,255,0.04)' },
+                },
+                y: {
+                    ticks: {
+                        color: '#9090a8', font: { size: 10 },
+                        callback: v => `${v} ${SYM}`
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                }
+            }
+        }
+    })
+}
+
+function buildPieChart(data) {
+    if (pieChart) { pieChart.destroy(); pieChart = null }
+
+    const legend = document.getElementById('legend')
+    legend.innerHTML = ''
+
+    if (!data.length) {
+        legend.innerHTML = '<div class="empty-state" style="padding:10px">Aucune dépense</div>'
+        return
+    }
+
+    const ctx = document.getElementById('pie-chart').getContext('2d')
+
+    pieChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels:   data.map(d => d.category_name),
+            datasets: [{
+                data:            data.map(d => d.total),
+                backgroundColor: data.map(d => d.color),
+                borderColor:     '#0d0d1a',
+                borderWidth:     2,
+                hoverOffset:     6,
+            }]
+        },
+        options: {
+            responsive:  true,
+            cutout:      '65%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed.toFixed(2)} ${SYM} (${data[ctx.dataIndex].percentage}%)`
+                    }
+                }
+            }
+        }
+    })
+
+    // Légende custom
+    data.forEach(d => {
+        const item = document.createElement('div')
+        item.className = 'legend-item'
+        item.innerHTML = `
+            <div class="legend-dot" style="background:${d.color}"></div>
+            <span style="font-size:12px">${d.category_name}</span>
+            <span class="legend-pct">${d.percentage}%</span>
+        `
+        legend.appendChild(item)
+    })
+}
+
+function buildBarChart(data) {
+    if (barChart) { barChart.destroy(); barChart = null }
+
+    if (!data.length) return
+
+    const ctx = document.getElementById('bar-chart').getContext('2d')
+
+    barChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels:   data.map(d => d.category_name),
+            datasets: [{
+                data:            data.map(d => d.total),
+                backgroundColor: data.map(d => d.color),
+                borderRadius:    6,
+                borderSkipped:   false,
+            }]
+        },
+        options: {
+            responsive:  true,
+            indexAxis:   'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed.x.toFixed(2)} ${SYM}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#9090a8', font: { size: 10 },
+                        callback: v => `${v} ${SYM}`
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                },
+                y: {
+                    ticks: { color: '#9090a8', font: { size: 11 } },
+                    grid:  { display: false },
+                }
+            }
+        }
+    })
+}
+
+init()
+</script>
+{% endblock %}

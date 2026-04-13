@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-screen">
+    <div class="auth-card">
+
+        <div class="auth-logo">
+            <div class="logo-circle">E</div>
+            <h1>EtuBudget</h1>
+            <p>Tracker de dépenses étudiant</p>
+        </div>
+
+        <div id="error-msg" class="error-msg hidden"></div>
+
+        <div class="form-group">
+            <label>Nom d'utilisateur</label>
+            <input type="text" id="username" placeholder="ex : thomas_l"
+                   autocomplete="username">
+        </div>
+
+        <div class="form-group">
+            <label>Mot de passe</label>
+            <input type="password" id="password" placeholder="6 caractères minimum"
+                   autocomplete="current-password">
+        </div>
+
+        <button class="btn-primary" onclick="login()">
+            Se connecter
+        </button>
+
+        <button class="btn-secondary" onclick="register()">
+            Créer un compte
+        </button>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function login() {
+    const username = document.getElementById('username').value.trim()
+    const password = document.getElementById('password').value
+    const errorEl  = document.getElementById('error-msg')
+
+    if (!username || !password) {
+        showError('Remplis tous les champs.')
+        return
+    }
+
+    try {
+        const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        })
+        const data = await res.json()
+        if (!res.ok) { showError(data.detail); return }
+
+        localStorage.setItem('token',    data.access_token)
+        localStorage.setItem('username', data.username)
+        localStorage.setItem('user_id',  data.user_id)
+        window.location.href = '/dashboard'
+    } catch(e) {
+        showError('Erreur réseau — réessaie.')
+    }
+}
+
+async function register() {
+    const username = document.getElementById('username').value.trim()
+    const password = document.getElementById('password').value
+
+    if (!username || !password) {
+        showError('Remplis tous les champs.')
+        return
+    }
+
+    try {
+        const res = await fetch('/auth/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        })
+        const data = await res.json()
+        if (!res.ok) { showError(data.detail); return }
+
+        localStorage.setItem('token',    data.access_token)
+        localStorage.setItem('username', data.username)
+        localStorage.setItem('user_id',  data.user_id)
+        window.location.href = '/dashboard'
+    } catch(e) {
+        showError('Erreur réseau — réessaie.')
+    }
+}
+
+function showError(msg) {
+    const el = document.getElementById('error-msg')
+    el.textContent = msg
+    el.classList.remove('hidden')
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') login()
+})
+</script>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="app-layout">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-name" id="hero-name">Bonjour !</div>
+      </div>
+      <div class="hero-av" id="hero-av" onclick="logout()">?</div>
+    </div>
+    <div class="hero-label">Solde cumulé total</div>
+    <div class="hero-balance" id="hero-balance">—</div>
+    <div class="hero-sub">Depuis le début · toutes transactions</div>
+    <div class="hero-chips">
+      <div class="hero-chip">
+        <div class="hero-chip-label">Dépenses</div>
+        <div class="hero-chip-val" id="chip-dep">—</div>
+      </div>
+      <div class="hero-chip">
+        <div class="hero-chip-label">Revenus</div>
+        <div class="hero-chip-val" id="chip-rev">—</div>
+      </div>
+      <div class="hero-chip">
+        <div class="hero-chip-label">Ce mois</div>
+        <div class="hero-chip-val" id="chip-nb">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenu -->
+  <div class="main-content">
+
+    <!-- Sélecteur de mois -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:12px;color:var(--text2)">Mois :</span>
+      <select id="month-select" onchange="loadMonth()"
+        style="background:var(--bg2);border:1px solid var(--border);
+               border-radius:8px;padding:6px 12px;font-size:12px;
+               color:var(--text);outline:none;font-family:inherit">
+      </select>
+    </div>
+
+    <!-- Mini graphique -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="section-hd">
+        <span class="section-title">Dépenses du mois</span>
+      </div>
+      <div class="bar-chart-wrap" id="bar-chart"></div>
+      <div class="bar-labels"    id="bar-labels"></div>
+    </div>
+
+    <!-- Dernières transactions -->
+    <div class="section-hd">
+      <span class="section-title">Dernières transactions</span>
+      <a href="/history" class="section-link">Tout voir</a>
+    </div>
+    <div class="tx-list" id="tx-list">
+      <div class="empty-state">Chargement...</div>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <a class="nav-item active" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="2" y="2" width="7" height="7" rx="1.5"/>
+        <rect x="11" y="2" width="7" height="7" rx="1.5"/>
+        <rect x="2" y="11" width="7" height="7" rx="1.5"/>
+        <rect x="11" y="11" width="7" height="7" rx="1.5"/>
+      </svg>
+      <span>Accueil</span>
+    </a>
+    <a class="nav-item" data-page="history" href="/history">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="2" y="3" width="16" height="14" rx="2"/>
+        <line x1="5" y1="8" x2="15" y2="8"/>
+        <line x1="5" y1="12" x2="10" y2="12"/>
+      </svg>
+      <span>Historique</span>
+    </a>
+    <a class="fab" href="/add">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+           stroke="white" stroke-width="2.5">
+        <line x1="11" y1="4" x2="11" y2="18"/>
+        <line x1="4"  y1="11" x2="18" y2="11"/>
+      </svg>
+    </a>
+    <a class="nav-item" data-page="stats" href="/stats">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <polyline points="2,15 6,9 10,11.5 13,6 18,4.5"/>
+      </svg>
+      <span>Stats</span>
+    </a>
+    <a class="nav-item" data-page="categories" href="/categories">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="10" cy="10" r="3"/>
+        <path d="M10 2v2M10 16v2M2 10h2M16 10h2"/>
+      </svg>
+      <span>Plus</span>
+    </a>
+  </nav>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!requireAuth()) {}
+
+const SYM = '€'
+
+async function init() {
+    // Nom utilisateur
+    const username = getUsername() || '?'
+    document.getElementById('hero-name').textContent = `Bonjour ${username} 👋`
+    document.getElementById('hero-av').textContent   = username.slice(0,2).toUpperCase()
+
+    // Solde cumulé
+    const balRes  = await api('/stats/balance')
+    const balData = await balRes.json()
+    const bal     = balData.balance || 0
+    const balEl   = document.getElementById('hero-balance')
+    balEl.textContent = `${bal >= 0 ? '+' : ''}${bal.toFixed(2)} ${SYM}`
+    balEl.style.color = bal >= 0 ? '#5DCAA5' : '#F09595'
+
+    // Mois disponibles
+    const mRes    = await api('/transactions/months')
+    const months  = await mRes.json()
+    const sel     = document.getElementById('month-select')
+    const current = currentMonth()
+
+    const allMonths = months.includes(current) ? months : [current, ...months]
+    allMonths.forEach(m => {
+        const opt = document.createElement('option')
+        opt.value = m
+        opt.textContent = m
+        sel.appendChild(opt)
+    })
+
+    loadMonth()
+}
+
+async function loadMonth() {
+    const month = document.getElementById('month-select').value
+
+    // Résumé mensuel
+    const sumRes  = await api(`/stats/summary?month=${month}`)
+    const summary = await sumRes.json()
+
+    document.getElementById('chip-dep').textContent =
+        `-${summary.total_depenses.toFixed(2)} ${SYM}`
+    document.getElementById('chip-rev').textContent =
+        `+${summary.total_revenus.toFixed(2)} ${SYM}`
+    document.getElementById('chip-nb').textContent  =
+        `${summary.nb_transactions} tx`
+
+    // Graphique barres
+    const dailyRes = await api(`/stats/daily?month=${month}`)
+    const daily    = await dailyRes.json()
+    buildBarChart(daily)
+
+    // Dernières transactions
+    const txRes = await api('/transactions/last?limit=5')
+    const txs   = await txRes.json()
+    buildTxList(txs)
+}
+
+function buildBarChart(data) {
+    const wrap   = document.getElementById('bar-chart')
+    const labels = document.getElementById('bar-labels')
+    wrap.innerHTML = ''; labels.innerHTML = ''
+
+    if (!data.length) {
+        wrap.innerHTML = '<div class="empty-state" style="padding:10px">Aucune dépense</div>'
+        return
+    }
+
+    const max = Math.max(...data.map(d => d.total))
+    data.forEach(d => {
+        const pct = Math.round((d.total / max) * 100)
+        const bar = document.createElement('div')
+        bar.className = 'bar'
+        bar.style.height     = `${pct}%`
+        bar.style.background = pct > 80 ? '#F09595' : '#1D9E75'
+        bar.style.opacity    = '0.8'
+        wrap.appendChild(bar)
+
+        const lbl = document.createElement('span')
+        lbl.textContent = d.date.split('-')[2]
+        labels.appendChild(lbl)
+    })
+}
+
+function buildTxList(txs) {
+    const list = document.getElementById('tx-list')
+    list.innerHTML = ''
+
+    if (!txs.length) {
+        list.innerHTML = '<div class="empty-state">Aucune transaction pour l\'instant<br>Clique sur + pour commencer !</div>'
+        return
+    }
+
+    txs.forEach(tx => {
+        const isDep  = tx.type === 'depense'
+        const color  = tx.category_color || '#5F5E5A'
+        const row    = document.createElement('div')
+        row.className = 'tx-row'
+        row.innerHTML = `
+            <div class="tx-icon" style="background:${hexToRgba(color,.2)}">
+                <div style="width:10px;height:10px;border-radius:3px;background:${color}"></div>
+            </div>
+            <div class="tx-info">
+                <div class="tx-name">${tx.description || 'Sans description'}</div>
+                <div class="tx-cat">${tx.category_name || 'Sans catégorie'}</div>
+            </div>
+            <div class="tx-date">${fmtDate(tx.date)}</div>
+            <div class="tx-amount ${isDep ? 'dep' : 'rev'}">
+                ${isDep ? '-' : '+'}${parseFloat(tx.amount).toFixed(2)} ${SYM}
+            </div>
+        `
+        list.appendChild(row)
+    })
+}
+
+init()
+</script>
+{% endblock %}

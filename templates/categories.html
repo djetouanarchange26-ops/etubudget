@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="app-layout">
+
+  <div class="page-header" style="padding:16px 16px 0">
+    <h2>Catégories</h2>
+    <p>Gérer tes catégories de dépenses</p>
+  </div>
+
+  <div class="main-content" style="padding-top:14px">
+
+    <!-- Formulaire création -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:12px">
+        Nouvelle catégorie
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Nom</label>
+        <input type="text" id="cat-name" placeholder="ex : Restau, BDE...">
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:var(--text2);font-weight:500;
+                    text-transform:uppercase;letter-spacing:.4px;
+                    margin-bottom:8px">
+          Couleur
+        </div>
+        <div id="palette" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div id="cat-feedback" class="error-msg hidden"
+           style="margin-bottom:10px"></div>
+      <button class="btn-primary" onclick="createCat()">
+        Créer la catégorie
+      </button>
+    </div>
+
+    <!-- Liste -->
+    <div class="section-title" style="margin-bottom:10px">
+      Mes catégories
+    </div>
+    <div id="cat-list">
+      <div class="empty-state">Chargement...</div>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
+      <span>Accueil</span>
+    </a>
+    <a class="nav-item" data-page="history" href="/history">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="5" y1="8" x2="15" y2="8"/><line x1="5" y1="12" x2="10" y2="12"/></svg>
+      <span>Historique</span>
+    </a>
+    <a class="fab" href="/add">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><line x1="11" y1="4" x2="11" y2="18"/><line x1="4" y1="11" x2="18" y2="11"/></svg>
+    </a>
+    <a class="nav-item" data-page="stats" href="/stats">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="2,15 6,9 10,11.5 13,6 18,4.5"/></svg>
+      <span>Stats</span>
+    </a>
+    <a class="nav-item active" data-page="categories" href="/categories">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2"/></svg>
+      <span>Plus</span>
+    </a>
+  </nav>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!requireAuth()) {}
+
+const PALETTE = [
+    '#1D9E75','#5DCAA5','#534AB7','#AFA9EC',
+    '#854F0B','#EF9F27','#993C1D','#F09595',
+    '#185FA5','#85B7EB','#3B6D11','#97C459',
+    '#5F5E5A','#D4537E','#0F6E56','#E24B4A',
+]
+
+let selectedColor = PALETTE[0]
+
+function buildPalette() {
+    const el = document.getElementById('palette')
+    PALETTE.forEach(c => {
+        const dot = document.createElement('div')
+        dot.style.cssText = `
+            width:24px;height:24px;border-radius:6px;
+            background:${c};cursor:pointer;
+            border:2px solid ${c === selectedColor ? 'white' : 'transparent'};
+            transition:border-color .15s;
+        `
+        dot.onclick = () => {
+            selectedColor = c
+            buildPalette()
+        }
+        el.appendChild(dot)
+    })
+}
+
+async function loadCats() {
+    const res  = await api('/categories/')
+    const cats = await res.json()
+    const list = document.getElementById('cat-list')
+    list.innerHTML = ''
+
+    if (!cats.length) {
+        list.innerHTML = `
+            <div class="empty-state">
+                Aucune catégorie<br>Crée-en une ci-dessus !
+            </div>`
+        return
+    }
+
+    cats.forEach(cat => {
+        const row = document.createElement('div')
+        row.className = 'tx-row'
+        row.style.marginBottom = '6px'
+        row.innerHTML = `
+            <div style="width:32px;height:32px;border-radius:8px;
+                        background:${cat.color};flex-shrink:0"></div>
+            <div class="tx-info">
+                <div class="tx-name">${cat.name}</div>
+            </div>
+            <button class="btn-danger"
+                    onclick="deleteCat(${cat.id},'${cat.name}')">
+                Supprimer
+            </button>
+        `
+        list.appendChild(row)
+    })
+}
+
+async function createCat() {
+    const name = document.getElementById('cat-name').value.trim()
+    const fb   = document.getElementById('cat-feedback')
+
+    if (!name || name.length < 2) {
+        showFb('Nom trop court — 2 caractères minimum.', true); return
+    }
+
+    const res = await api('/categories/', {
+        method: 'POST',
+        body:   JSON.stringify({name, color: selectedColor})
+    })
+
+    if (res && res.ok) {
+        document.getElementById('cat-name').value = ''
+        selectedColor = PALETTE[0]
+        buildPalette()
+        loadCats()
+        showFb('Catégorie créée !', false)
+        setTimeout(() => fb.classList.add('hidden'), 2000)
+    } else {
+        const data = res ? await res.json() : {}
+        showFb(data.detail || 'Erreur.', true)
+    }
+}
+
+async function deleteCat(id, name) {
+    if (!confirm(`Supprimer "${name}" ? Les transactions liées ne seront pas supprimées.`))
+        return
+
+    const res = await api(`/categories/${id}`, {method: 'DELETE'})
+    if (res && res.ok) loadCats()
+}
+
+function showFb(msg, isError) {
+    const fb = document.getElementById('cat-feedback')
+    fb.textContent    = msg
+    fb.style.background  = isError ? 'rgba(240,149,149,.1)' : 'rgba(93,202,165,.1)'
+    fb.style.borderColor = isError ? 'rgba(240,149,149,.3)' : 'rgba(93,202,165,.3)'
+    fb.style.color       = isError ? '#F09595' : '#5DCAA5'
+    fb.classList.remove('hidden')
+}
+
+buildPalette()
+loadCats()
+</script>
+{% endblock %}
