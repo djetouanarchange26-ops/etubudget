@@ -126,6 +126,9 @@ class AddTransactionFrame(ctk.CTkFrame):
             command=self._submit,
         ).grid(row=9, column=0, columnspan=2,
                sticky="ew", padx=16, pady=(0, 16))
+        self.bind("<Return>", lambda e: self._submit())
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "ajouter")
 
     def _build_chips(self):
         for widget in self.chips_frame.winfo_children():

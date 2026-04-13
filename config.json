@@ -1,5 +1,14 @@
 {
-    "devise": "EUR",
-    "symbole": "\u20ac",
-    "devise_base": "EUR"
+    "devise": "XOF",
+    "symbole": "FCFA",
+    "devise_base": "EUR",
+    "theme": "light",
+    "onboarding_seen": {
+        "dashboard": true,
+        "ajouter": true,
+        "categories": true,
+        "historique": true,
+        "stats": true,
+        "exporter": true
+    }
 }

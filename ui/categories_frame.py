@@ -110,6 +110,9 @@ class CategoriesFrame(ctk.CTkFrame):
         self.list_frame.columnconfigure(0, weight=1)
 
         self._build_list()
+        self.bind("<Return>", lambda e: self._create())
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "categories")
 
     def _select_color(self, color):
         # Réinitialiser tous les boutons
@@ -163,9 +166,11 @@ class CategoriesFrame(ctk.CTkFrame):
         if not categories:
             ctk.CTkLabel(
                 self.list_frame,
-                text="Aucune catégorie — crée-en une ci-dessus !",
-                text_color="gray", font=ctk.CTkFont(size=12),
-            ).grid(row=0, column=0, pady=20)
+                text="Aucune catégorie pour l'instant.\nClique sur Créer pour en ajouter une !",
+                text_color="gray",
+                font=ctk.CTkFont(size=12),
+                justify="center",
+            ).grid(row=0, column=0, pady=30)
             return
 
         for i, cat in enumerate(categories):

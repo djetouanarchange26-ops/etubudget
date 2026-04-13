@@ -127,6 +127,8 @@ class HistoryFrame(ctk.CTkFrame):
         self.label_total.grid(row=0, column=0, sticky="e", padx=16, pady=8)
 
         self._apply_filters()
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "historique")
 
     def _apply_filters(self):
         month = self.month_var.get()
@@ -153,9 +155,11 @@ class HistoryFrame(ctk.CTkFrame):
         if not transactions:
             ctk.CTkLabel(
                 self.list_frame,
-                text="Aucune transaction pour ces filtres.",
-                text_color="gray", font=ctk.CTkFont(size=12),
-            ).grid(row=0, column=0, pady=24)
+                text="Aucune transaction pour ces filtres.\nEssaie de changer le mois ou la catégorie.",
+                text_color="gray",
+                font=ctk.CTkFont(size=12),
+                justify="center",
+            ).grid(row=0, column=0, pady=30)
             return
 
         config  = get_config()

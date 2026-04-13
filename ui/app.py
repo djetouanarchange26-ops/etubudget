@@ -16,6 +16,11 @@ class App(ctk.CTk):
         self._register_frames()
         self.show_frame("login")
         self.bind("<Control-n>", lambda e: self.show_frame("ajouter"))
+        self.bind("<Control-n>", lambda e: self.show_frame("ajouter"))
+        self.bind("<Control-h>", lambda e: self.show_frame("historique"))
+        self.bind("<Control-s>", lambda e: self.show_frame("stats"))
+        self.bind("<Control-e>", lambda e: self.show_frame("exporter"))
+        self.bind("<Control-d>", lambda e: self.show_frame("accueil"))
 
     def _build_layout(self):
         self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0,

@@ -40,3 +40,14 @@ def save_config(data):
     data_to_save = {k: v for k, v in data.items() if k != "api_key"}
     with open("config.json", "w") as f:
         json.dump(data_to_save, f, indent=4)
+
+def mark_seen(feature_name: str):
+    config = get_config()
+    if "onboarding_seen" not in config:
+        config["onboarding_seen"] = {}
+    config["onboarding_seen"][feature_name] = True
+    save_config(config)
+
+def is_seen(feature_name: str) -> bool:
+    config = get_config()
+    return config.get("onboarding_seen", {}).get(feature_name, False)

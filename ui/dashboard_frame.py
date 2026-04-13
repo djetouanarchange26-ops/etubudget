@@ -113,6 +113,8 @@ class DashboardFrame(ctk.CTkFrame):
         self._build_cumul_card()
         self._build_cards()
         self._build_transactions()
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "dashboard")
 
     def _get_fmt(self):
         config  = get_config()
@@ -238,10 +240,11 @@ class DashboardFrame(ctk.CTkFrame):
         if not transactions:
             ctk.CTkLabel(
                 self.tx_frame,
-                text="Aucune transaction pour l'instant — commence à en ajouter !",
+                text="Aucune transaction pour l'instant\nClique sur Ajouter pour commencer !",
                 text_color="gray",
                 font=ctk.CTkFont(size=12),
-            ).grid(row=0, column=0, pady=20)
+                justify="center",
+            ).grid(row=0, column=0, pady=30)
             return
 
         config  = get_config()

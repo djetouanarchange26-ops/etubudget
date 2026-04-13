@@ -131,6 +131,8 @@ class StatsFrame(ctk.CTkFrame):
         )
 
         self._refresh_all()
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "stats")
 
     def _get_fmt(self):
         config  = get_config()
@@ -199,10 +201,12 @@ class StatsFrame(ctk.CTkFrame):
 
         if not data:
             ax.text(
-                0.5, 0.5, "Aucune dépense ce mois",
+                0.5, 0.5,
+                "Aucune dépense ce mois\nAjoute des transactions pour voir tes stats",
                 ha="center", va="center",
-                color="#9090a8", fontsize=10,
+                color="#9090a8", fontsize=9,
                 transform=ax.transAxes,
+                multialignment="center",
             )
         else:
             fmt, symbole, base, cible, api_key = self._get_fmt()
@@ -247,11 +251,14 @@ class StatsFrame(ctk.CTkFrame):
 
         if not data:
             ax.text(
-                0.5, 0.5, "Aucune dépense",
-                ha="center", va="center",
-                color="#9090a8", fontsize=10,
-                transform=ax.transAxes,
-            )
+                    0.5, 0.5,
+                    "Aucune dépense ce mois\nAjoute des transactions pour voir tes stats",
+                    ha="center", va="center",
+                    color="#9090a8", fontsize=9,
+                    transform=ax.transAxes,
+                    multialignment="center",
+                )
+            
         else:
             fmt, symbole, base, cible, api_key = self._get_fmt()
             labels  = [d["category_name"] for d in data]

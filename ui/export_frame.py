@@ -148,6 +148,8 @@ class ExportFrame(ctk.CTkFrame):
             command=self._export_pdf,
         ).grid(row=3, column=0, sticky="ew",
                padx=16, pady=(0, 16))
+        from ui.onboarding import show_onboarding
+        show_onboarding(self, "exporter")
 
     def _get_transactions(self):
         period = self.period_var.get()
